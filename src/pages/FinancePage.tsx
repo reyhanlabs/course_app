@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { RevenueChart } from '../components/RevenueChart';
-import { Badge, EmptyState, ErrorState, LoadingState, PageHeader, Panel, Table } from '../components/ui';
+import { Badge, EmptyState, ErrorState, LoadingState, PageHeader, Panel, StatCard, Table } from '../components/ui';
+import { AlertCircle, FileText, Hourglass, Wallet } from 'lucide-react';
 import { useAsync } from '../hooks/useAsync';
 import { lastMonths, outstandingSummary, revenueByMonth } from '../lib/finance';
 import { currentMonth, formatDate, formatMonth, formatRupiah, todayISO } from '../lib/format';
@@ -26,10 +27,10 @@ export function FinancePage() {
     <>
       <PageHeader title="Keuangan" description="Pendapatan dihitung dari pembayaran yang sudah diverifikasi, menurut tanggal bayar." />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card label={`Pendapatan ${formatMonth(month)}`} value={formatRupiah(thisMonth.total)} sub={`Per sesi ${formatRupiah(thisMonth.perSession)} · Bulanan ${formatRupiah(thisMonth.monthly)}`} />
-        <Card label="Belum dibayar" value={formatRupiah(summary.outstanding)} sub={`${summary.open.length} tagihan`} to="/invoices?status=unpaid" />
-        <Card label="Terlambat" value={formatRupiah(summary.overdueAmount)} sub={`${summary.overdue.length} tagihan lewat jatuh tempo`} to="/invoices?status=overdue" danger={summary.overdue.length > 0} />
-        <Card label="Menunggu verifikasi" value={String(pending.length)} sub={formatRupiah(pending.reduce((s, p) => s + p.amount, 0))} to="/payments?status=pending" />
+        <StatCard icon={Wallet} tone="amber" label={`Pendapatan ${formatMonth(month)}`} value={formatRupiah(thisMonth.total)} hint={`Per sesi ${formatRupiah(thisMonth.perSession)}, bulanan ${formatRupiah(thisMonth.monthly)}`} />
+        <StatCard icon={FileText} tone="blue" label="Belum dibayar" value={formatRupiah(summary.outstanding)} hint={`${summary.open.length} tagihan`} to="/invoices?status=unpaid" />
+        <StatCard icon={AlertCircle} tone={summary.overdue.length ? 'red' : 'gray'} label="Terlambat" value={formatRupiah(summary.overdueAmount)} hint={`${summary.overdue.length} tagihan lewat jatuh tempo`} to="/invoices?status=overdue" danger={summary.overdue.length > 0} />
+        <StatCard icon={Hourglass} tone="gray" label="Menunggu verifikasi" value={pending.length} hint={formatRupiah(pending.reduce((s, p) => s + p.amount, 0))} to="/payments?status=pending" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -45,7 +46,7 @@ export function FinancePage() {
             <ul className="divide-y divide-ink-100">
               {topOutstanding.map((i) => (
                 <li key={i.id}>
-                  <Link to={`/invoices/${i.id}`} className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-ink-50">
+                  <Link to={`/invoices/${i.id}`} className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-ink-50/70">
                     <span className="flex-1">
                       <span className="font-medium">{i.studentName}</span>
                       <span className="block text-xs text-ink-500">
@@ -88,20 +89,3 @@ export function FinancePage() {
   );
 }
 
-function Card({ label, value, sub, to, danger }: { label: string; value: string; sub: string; to?: string; danger?: boolean }) {
-  const body = (
-    <>
-      <p className="text-sm text-ink-500">{label}</p>
-      <p className={`mt-1 text-2xl font-bold ${danger ? 'text-rose-700' : ''}`}>{value}</p>
-      <p className="mt-1 text-xs text-ink-500">{sub}</p>
-    </>
-  );
-  const cls = 'block rounded-xl border border-ink-100 bg-white p-5';
-  return to ? (
-    <Link to={to} className={`${cls} hover:border-brand-100`}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}

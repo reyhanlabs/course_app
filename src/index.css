@@ -1,32 +1,73 @@
 @import 'tailwindcss';
 
 /*
-  Token desain: "buku tulis sekolah" — kertas putih, tinta biru tua,
-  dan stabilo kuning sebagai satu-satunya aksen berani (menu aktif).
+  Identitas visual: "buku tulis sekolah".
+  - Tinta biru tua (ink) untuk sidebar & teks, kertas dingin (paper) untuk latar.
+  - Garis bergaris + garis margin merah buku tulis dipakai di panel login & sidebar.
+  - Stabilo kuning (marker) = satu-satunya aksen berani: menu aktif & sorotan penting.
 */
 @theme {
   --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
 
-  --color-ink-50: #f3f6f9;
-  --color-ink-100: #e4e9f0;
-  --color-ink-200: #cdd5e1;
-  --color-ink-400: #8491a8;
-  --color-ink-500: #5d6a82;
-  --color-ink-700: #33405c;
-  --color-ink-900: #1e2a4a;
+  --color-ink-50: #f5f6fa;
+  --color-ink-100: #e7eaf2;
+  --color-ink-200: #d3d8e6;
+  --color-ink-300: #b3bbd0;
+  --color-ink-400: #8a93ad;
+  --color-ink-500: #5f6883;
+  --color-ink-700: #333c5c;
+  --color-ink-800: #222b4b;
+  --color-ink-900: #172040;
+  --color-ink-950: #10172f;
 
-  --color-brand-50: #edf2fc;
-  --color-brand-100: #d9e4f8;
-  --color-brand-500: #3a68c9;
-  --color-brand-600: #2e5bba;
-  --color-brand-700: #244a99;
+  --color-brand-50: #eef2fd;
+  --color-brand-100: #dbe3fb;
+  --color-brand-200: #b9c8f6;
+  --color-brand-500: #3d63e0;
+  --color-brand-600: #2f55d4;
+  --color-brand-700: #2544ad;
 
-  --color-marker: #f5b82e;
-  --color-marker-soft: #fdecbf;
+  --color-marker: #f6c343;
+  --color-marker-soft: #fdf0c7;
+
+  --color-margin: #e36b6b;
+
+  --radius-panel: 1rem;
+
+  --animate-pop: pop 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade: fade 160ms ease-out;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: -400px 0;
+    }
+    to {
+      background-position: 400px 0;
+    }
+  }
 }
 
 html {
-  font-feature-settings: 'tnum' 1;
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
 }
 
 body {
@@ -39,17 +80,37 @@ body {
 }
 
 .input {
-  @apply block w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-ink-50 disabled:text-ink-500;
+  @apply block h-10 w-full rounded-[10px] border border-ink-200 bg-white px-3 text-sm text-ink-900 shadow-[0_1px_0_rgba(23,32,64,0.03)] transition-colors placeholder:text-ink-400 hover:border-ink-300 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-500;
+}
+textarea.input {
+  @apply h-auto py-2;
+}
+input[type='file'].input {
+  @apply h-auto py-1.5 file:mr-3 file:rounded-md file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink-700 hover:file:bg-ink-200;
 }
 
-/* Sorotan stabilo pada menu aktif */
-.marker-active {
-  background-image: linear-gradient(transparent 55%, var(--color-marker-soft) 55%, var(--color-marker-soft) 90%, transparent 90%);
+/* Kertas buku tulis: garis biru tipis + garis margin merah */
+.notebook {
+  background-image:
+    linear-gradient(to right, transparent 47px, color-mix(in srgb, var(--color-margin) 70%, transparent) 47px, color-mix(in srgb, var(--color-margin) 70%, transparent) 49px, transparent 49px),
+    repeating-linear-gradient(to bottom, transparent 0, transparent 31px, rgba(255, 255, 255, 0.07) 31px, rgba(255, 255, 255, 0.07) 32px);
+}
+.notebook-light {
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, rgba(47, 85, 212, 0.06) 27px, rgba(47, 85, 212, 0.06) 28px);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-ink-100) 0, #eef1f7 50%, var(--color-ink-100) 100%);
+  background-size: 800px 100%;
+  @apply animate-shimmer rounded-md;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Field, FormError } from '../components/ui';
 import { appName } from '../lib/env';
+import { ClipboardCheck, HeartHandshake, Wallet } from 'lucide-react';
 import { errorMessage } from '../lib/errors';
 import { auth } from '../lib/firebase';
 import { useAsync } from '../hooks/useAsync';
@@ -11,19 +12,52 @@ import { isSetupDone } from '../services/setup';
 import { GoogleButton, OrDivider } from '../components/GoogleButton';
 import { signInWithGoogle } from '../services/googleAuth';
 
-export function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
+export function AuthShell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-ink-900 font-bold text-white">Aa</span>
+    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+      {/* Panel merek: halaman buku tulis */}
+      <aside className="notebook relative hidden flex-col justify-between overflow-hidden bg-ink-900 py-12 pl-20 pr-12 text-white lg:flex">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-marker font-extrabold text-ink-900">Aa</span>
           <span className="text-lg font-bold">{appName}</span>
         </div>
-        <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
-          <h1 className="mb-5 text-xl font-bold">{title}</h1>
-          {children}
+        <div className="max-w-md">
+          <h2 className="text-[40px] font-extrabold leading-[1.1] tracking-tight">Kelas tertata, orang tua tenang.</h2>
+          <p className="mt-4 text-[15px] leading-relaxed text-ink-300">
+            Jadwal, absensi, perkembangan belajar, dan tagihan kursus dalam satu tempat.
+          </p>
+          <ul className="mt-8 space-y-3.5 text-sm text-ink-200">
+            {[
+              [ClipboardCheck, 'Guru mengisi absensi langsung dari HP.'],
+              [Wallet, 'Tagihan per sesi dihitung otomatis dari kehadiran.'],
+              [HeartHandshake, 'Orang tua memantau anak dan mengirim bukti bayar.'],
+            ].map(([Icon, text]) => {
+              const I = Icon as typeof Wallet;
+              return (
+                <li key={text as string} className="flex items-center gap-3">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-marker">
+                    <I className="h-4 w-4" />
+                  </span>
+                  {text as string}
+                </li>
+              );
+            })}
+          </ul>
         </div>
-      </div>
+        <p className="text-xs text-ink-400">Data Anda tersimpan aman dan hanya bisa dibuka sesuai peran.</p>
+      </aside>
+
+      <main className="flex items-center justify-center px-5 py-10 sm:px-10">
+        <div className="w-full max-w-[400px] animate-pop">
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <span className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-marker font-extrabold text-ink-900">Aa</span>
+            <span className="text-lg font-bold">{appName}</span>
+          </div>
+          <h1 className="text-[28px] font-bold tracking-tight">{title}</h1>
+          {subtitle && <p className="mt-1.5 text-sm text-ink-500">{subtitle}</p>}
+          <div className="mt-7">{children}</div>
+        </div>
+      </main>
     </div>
   );
 }
@@ -66,7 +100,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell title="Masuk">
+    <AuthShell title="Selamat datang" subtitle="Masuk untuk melanjutkan ke akun Anda.">
       {setup.data === false && (
         <Link
           to="/setup"
@@ -93,7 +127,7 @@ export function LoginPage() {
           <input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <FormError message={error} />
-        <Button type="submit" className="w-full" loading={busy}>
+        <Button type="submit" className="h-11 w-full" loading={busy}>
           Masuk
         </Button>
         <p className="flex justify-between text-sm">

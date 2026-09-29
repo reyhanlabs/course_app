@@ -47,7 +47,7 @@ export function SetupPage() {
   }
 
   return (
-    <AuthShell title="Buat akun admin pertama">
+    <AuthShell title="Buat admin pertama" subtitle="Langkah sekali saja sebelum aplikasi dipakai.">
       <p className="mb-4 text-sm text-ink-500">
         Halaman ini hanya bisa dipakai sekali. Setelah admin pertama dibuat, halaman ini tertutup dan akun lain dibuat dari menu
         Pengguna, Guru, dan Orang Tua.
@@ -69,7 +69,7 @@ export function SetupPage() {
           <input className="input" type="password" autoComplete="new-password" required value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} />
         </Field>
         <FormError message={error} />
-        <Button type="submit" className="w-full" loading={busy}>
+        <Button type="submit" className="h-11 w-full" loading={busy}>
           Buat admin & masuk
         </Button>
       </form>

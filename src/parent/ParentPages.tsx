@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Paperclip, Printer } from 'lucide-react';
+import { CalendarDays, ClipboardCheck, ExternalLink, NotebookPen, Paperclip, Printer, Wallet, type LucideIcon } from 'lucide-react';
+import type { Tone } from '../lib/labels';
 import { useProfile } from '../auth/AuthContext';
 import { ChildCard } from '../components/ChildCard';
 import { LessonSummary } from '../components/LessonSummary';
 import { MoneyInput } from '../components/MoneyInput';
 import { ProgressHistory } from '../components/ProgressHistory';
-import { Badge, Button, buttonClass, EmptyState, ErrorState, Field, FormError, LoadingState, Modal, PageHeader, Panel, Table } from '../components/ui';
+import { Badge, Button, buttonClass, EmptyState, ErrorState, Field, FormError, LoadingState, Modal, PageHeader, Panel, StatCard, Table } from '../components/ui';
 import { useAsync } from '../hooks/useAsync';
 import { effectiveStatus } from '../lib/billing';
 import { errorMessage } from '../lib/errors';
@@ -75,11 +76,11 @@ export function ChildOverviewPage() {
   const lastProgress = data.progress[0];
   const avg = lastProgress ? averageScore(lastProgress.scores) : null;
 
-  const cards: [string, string, string, string][] = [
-    ['Kehadiran 30 hari', percent(present, recent.length), `${present} dari ${recent.length} sesi`, '/p/attendance'],
-    ['Sesi berikutnya', next ? formatDateWithDay(next.date) : '-', next ? `${next.startTime}–${next.endTime}` : 'Belum dijadwalkan', '/p/schedule'],
-    ['PR belum dikumpulkan', String(openHomework.length), openHomework[0] ? `Terdekat: ${formatDate(openHomework[0].dueDate)}` : 'Semua beres', '/p/homework'],
-    ['Sisa tagihan', formatRupiah(outstanding), outstanding ? 'Lihat tagihan' : 'Tidak ada tagihan', '/p/invoices'],
+  const cards: [LucideIcon, Tone, string, string, string, string][] = [
+    [ClipboardCheck, 'green', 'Kehadiran 30 hari', percent(present, recent.length), `${present} dari ${recent.length} sesi`, '/p/attendance'],
+    [CalendarDays, 'blue', 'Sesi berikutnya', next ? formatDateWithDay(next.date) : '-', next ? `${next.startTime}–${next.endTime}` : 'Belum dijadwalkan', '/p/schedule'],
+    [NotebookPen, openHomework.length ? 'amber' : 'gray', 'PR belum dikumpulkan', String(openHomework.length), openHomework[0] ? `Terdekat: ${formatDate(openHomework[0].dueDate)}` : 'Semua beres', '/p/homework'],
+    [Wallet, outstanding ? 'red' : 'gray', 'Sisa tagihan', formatRupiah(outstanding), outstanding ? 'Lihat tagihan' : 'Tidak ada tagihan', '/p/invoices'],
   ];
 
   return (
@@ -88,14 +89,10 @@ export function ChildOverviewPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <ChildCard student={child} levels={levels} />
         <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
-          {cards.map(([label, value, sub, to]) => (
-            <Link key={label} to={to} className="block rounded-xl border border-ink-100 bg-white p-5 hover:border-brand-100">
-              <p className="text-sm text-ink-500">{label}</p>
-              <p className="mt-1 text-xl font-bold">{value}</p>
-              <p className="mt-1 text-xs text-ink-500">{sub}</p>
-            </Link>
+          {cards.map(([icon, tone, label, value, sub, to]) => (
+            <StatCard key={label} icon={icon} tone={tone} label={label} value={value} hint={sub} to={to} />
           ))}
-          <Link to="/p/progress" className="block rounded-xl border border-ink-100 bg-white p-5 hover:border-brand-100 sm:col-span-2">
+          <Link to="/p/progress" className="block rounded-2xl border border-ink-100 bg-white p-5 shadow-[0_1px_2px_rgba(23,32,64,0.04)] hover:border-brand-200 sm:col-span-2">
             <p className="text-sm text-ink-500">Penilaian terakhir</p>
             {lastProgress ? (
               <>

@@ -27,19 +27,18 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthShell title="Atur ulang kata sandi">
+    <AuthShell title="Lupa kata sandi" subtitle="Kami kirim tautan untuk membuat kata sandi baru.">
       {sent ? (
         <p className="text-sm text-ink-700">
           Jika email <strong>{email}</strong> terdaftar, tautan untuk membuat kata sandi baru sudah dikirim. Periksa juga folder spam.
         </p>
       ) : (
         <form onSubmit={onSubmit} className="space-y-4">
-          <p className="text-sm text-ink-500">Masukkan email akun Anda. Kami akan mengirim tautan untuk membuat kata sandi baru.</p>
           <Field label="Email">
             <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           <FormError message={error} />
-          <Button type="submit" className="w-full" loading={busy}>
+          <Button type="submit" className="h-11 w-full" loading={busy}>
             Kirim tautan
           </Button>
         </form>

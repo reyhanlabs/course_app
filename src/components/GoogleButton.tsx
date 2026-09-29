@@ -7,7 +7,7 @@ export function GoogleButton({ onClick, loading, label = 'Masuk dengan Google' }
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="flex w-full items-center justify-center gap-3 rounded-lg border border-ink-200 bg-white px-3.5 py-2 text-sm font-semibold text-ink-900 transition-colors hover:bg-ink-50 disabled:opacity-50"
+      className="flex h-11 w-full items-center justify-center gap-3 rounded-[10px] border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 shadow-[0_1px_2px_rgba(23,32,64,0.05)] transition-colors hover:border-ink-300 hover:bg-ink-50 disabled:opacity-50"
     >
       {loading ? (
         <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -26,7 +26,7 @@ export function GoogleButton({ onClick, loading, label = 'Masuk dengan Google' }
 
 export function OrDivider() {
   return (
-    <div className="my-4 flex items-center gap-3 text-xs text-ink-400">
+    <div className="my-6 flex items-center gap-3 text-xs font-medium text-ink-400">
       <span className="h-px flex-1 bg-ink-100" />
       atau
       <span className="h-px flex-1 bg-ink-100" />
