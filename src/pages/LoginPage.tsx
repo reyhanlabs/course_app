@@ -76,6 +76,13 @@ export function LoginPage() {
           Klik di sini untuk membuat akun admin pertama.
         </Link>
       )}
+      {setup.error && (
+        <div className="mb-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          <span className="block font-semibold">Database belum siap</span>
+          Aplikasi belum bisa membaca Firestore. Pastikan database Firestore sudah dibuat dan rules sudah dipasang (lihat README
+          langkah 3), lalu muat ulang halaman ini.
+        </div>
+      )}
       <GoogleButton onClick={onGoogle} loading={googleBusy} />
       <OrDivider />
       <form onSubmit={onSubmit} className="space-y-4">
@@ -89,10 +96,15 @@ export function LoginPage() {
         <Button type="submit" className="w-full" loading={busy}>
           Masuk
         </Button>
-        <p className="text-center text-sm">
+        <p className="flex justify-between text-sm">
           <Link to="/forgot-password" className="font-medium text-brand-600 hover:underline">
             Lupa kata sandi?
           </Link>
+          {setup.data !== true && (
+            <Link to="/setup" className="font-medium text-brand-600 hover:underline">
+              Buat admin pertama
+            </Link>
+          )}
         </p>
       </form>
     </AuthShell>

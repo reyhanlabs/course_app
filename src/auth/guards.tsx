@@ -83,7 +83,8 @@ function NoProfile() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (setup.data === false) {
+  // Tawarkan jadi admin selama belum dipastikan sudah ada admin (juga saat pengecekan gagal).
+  if (setup.data !== true && !setup.loading) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
         <div className="w-full max-w-md rounded-2xl border border-ink-100 bg-white p-8">
