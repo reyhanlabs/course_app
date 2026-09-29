@@ -122,7 +122,7 @@ export function ClassFormModal({
             </select>
           </Field>
         </div>
-        <p className="text-xs text-ink-500">Ruangan dan jadwal kelas diatur di Fase 2 (modul Ruangan &amp; Jadwal).</p>
+        <p className="text-xs text-ink-500">Ruangan dan hari/jam kelas diatur di menu Jadwal.</p>
       </form>
       <FormError message={error} />
     </Modal>

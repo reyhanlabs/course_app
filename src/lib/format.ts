@@ -47,3 +47,76 @@ export function ageFromDate(dateOfBirth: string): number | null {
   if (beforeBirthday) age -= 1;
   return age;
 }
+
+// ---------- tanggal & waktu (Fase 2) ----------
+
+function parseISO(date: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function toISO(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export function addDays(date: string, days: number): string {
+  const d = parseISO(date);
+  d.setDate(d.getDate() + days);
+  return toISO(d);
+}
+
+/** 1 = Senin … 7 = Minggu */
+export function isoDayOfWeek(date: string): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
+  const js = parseISO(date).getDay();
+  return (js === 0 ? 7 : js) as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+}
+
+export function daysBetween(from: string, to: string): number {
+  return Math.round((parseISO(to).getTime() - parseISO(from).getTime()) / 86_400_000);
+}
+
+export function startOfWeek(date: string): string {
+  return addDays(date, 1 - isoDayOfWeek(date));
+}
+
+/** "2026-10" → { from: "2026-10-01", to: "2026-10-31" } */
+export function monthRange(month: string): { from: string; to: string } {
+  const [y, m] = month.split('-').map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return { from: `${month}-01`, to: `${month}-${pad(last)}` };
+}
+
+export function currentMonth(): string {
+  return todayISO().slice(0, 7);
+}
+
+const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+export function formatMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return `${monthNames[m - 1]} ${y}`;
+}
+
+const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+/** "Senin, 05/10/2026" */
+export function formatDateWithDay(date: string): string {
+  return `${dayNames[isoDayOfWeek(date) - 1]}, ${formatDate(date)}`;
+}
+
+export function timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/** Rentang [aStart, aEnd) dan [bStart, bEnd) bertumpukan? */
+export function timesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return timeToMinutes(aStart) < timeToMinutes(bEnd) && timeToMinutes(bStart) < timeToMinutes(aEnd);
+}
+
+export function percent(part: number, total: number): string {
+  return total === 0 ? '-' : `${Math.round((part / total) * 100)}%`;
+}
+
+export function addMinutes(time: string, minutes: number): string {
+  const total = Math.min(timeToMinutes(time) + minutes, 23 * 60 + 59);
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+}

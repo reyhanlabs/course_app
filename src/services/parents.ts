@@ -16,6 +16,7 @@ import { createAuthAccount, isValidEmail, sendSetupEmail } from './accounts';
 import { addAuditLog } from './audit';
 import { countDocs, getDocById, listDocs, required } from './db';
 import { listStudentsOfParent } from './students';
+import { syncParentUsers, syncStudentFinanceParents } from './parentAccess';
 
 const COL = 'parents';
 
@@ -107,5 +108,7 @@ export async function createParentAccount(parent: Parent) {
     newData: { role: 'parent', parentId: parent.id, email: parent.email },
   });
   await batch.commit();
+  await syncParentUsers([uid]);
+  for (const child of children) await syncStudentFinanceParents(child.id);
   await sendSetupEmail(parent.email);
 }

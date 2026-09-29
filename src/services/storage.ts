@@ -22,3 +22,28 @@ export async function uploadPhoto(
   }
   return { url, path };
 }
+
+export function safeFileName(name: string): string {
+  return name.replace(/[^\w.\-]+/g, '_').slice(-80) || 'file';
+}
+
+/** Upload file umum (materi, lampiran PR). */
+export async function uploadFile(
+  folder: 'materials' | 'homework' | 'payments',
+  ownerId: string,
+  file: File,
+  maxBytes: number,
+): Promise<{ url: string; path: string; name: string }> {
+  if (file.size > maxBytes) {
+    throw new Error(`Ukuran file maksimal ${Math.round(maxBytes / 1024 / 1024)} MB.`);
+  }
+  const path = `${folder}/${ownerId}/${Date.now()}-${safeFileName(file.name)}`;
+  const fileRef = ref(storage, path);
+  await uploadBytes(fileRef, file, { contentType: file.type || 'application/octet-stream' });
+  return { url: await getDownloadURL(fileRef), path, name: file.name };
+}
+
+export async function deleteFile(path: string | null) {
+  if (!path) return;
+  await deleteObject(ref(storage, path)).catch(() => undefined);
+}

@@ -38,6 +38,14 @@ service cloud.firestore {
     function teacherClassIds() {
       return me().get('classIds', []);
     }
+    // Orang tua: users/{uid}.childIds & childClassIds dipelihara aplikasi admin
+    // (services/parentAccess.ts). Pola sama seperti classIds guru.
+    function parentChildIds() {
+      return me().get('childIds', []);
+    }
+    function parentClassIds() {
+      return me().get('childClassIds', []);
+    }
 
     // ---------- Pengguna & peran ----------
     match /users/{uid} {
@@ -67,7 +75,8 @@ service cloud.firestore {
     // ---------- Kelas ----------
     match /classes/{classId} {
       allow read: if isAdminOrOwner()
-        || (isTeacher() && resource.data.teacherUid == request.auth.uid);
+        || (isTeacher() && resource.data.teacherUid == request.auth.uid)
+        || (isParent() && classId in parentClassIds());
       allow create, update: if isAdmin();
       allow delete: if false;
     }
@@ -111,9 +120,255 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // TODO Fase 2–5: rooms, schedules, sessions, attendance, curriculum,
-    // lessons, materials, homework, studentProgress, billing, invoices,
-    // payments, receipts, announcements, notifications.
-    // Selama belum ada rule, koleksi tersebut tertolak secara default.
+    // =================== FASE 2: AKADEMIK ===================
+
+    function isStaff() { return isAdmin() || isOwner() || isTeacher(); }
+    function teachesClass(classId) { return isTeacher() && classId in teacherClassIds(); }
+    function onlyChanges(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    match /rooms/{roomId} {
+      allow read: if isStaff();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if isAdminOrOwner() || teachesClass(resource.data.classId)
+        || (isParent() && resource.data.classId in parentClassIds());
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Sesi = pertemuan nyata. Dasar penagihan PER_SESSION (Fase 3).
+    match /sessions/{sessionId} {
+      allow read: if isAdminOrOwner() || teachesClass(resource.data.classId)
+        || (isParent() && resource.data.classId in parentClassIds());
+      allow create: if isAdmin()
+        && request.resource.data.status == 'scheduled';
+      // Guru hanya boleh mengisi rencana & menyelesaikan sesi kelasnya,
+      // tidak boleh mengubah tanggal/kelas/jam atau membatalkan.
+      allow update: if isAdmin()
+        || (teachesClass(resource.data.classId)
+            && resource.data.status != 'cancelled'
+            && request.resource.data.status in ['scheduled', 'completed']
+            && onlyChanges(['topic', 'lessonId', 'notes', 'status', 'completedAt', 'completedBy', 'updatedAt']));
+      allow delete: if false;
+    }
+
+    function sessionOf(sessionId) {
+      return get(/databases/$(database)/documents/sessions/$(sessionId)).data;
+    }
+    function validAttendance() {
+      let d = request.resource.data;
+      return d.status in ['present', 'absent', 'late', 'excused']
+        && d.recordedBy == request.auth.uid
+        && sessionOf(d.sessionId).classId == d.classId
+        && sessionOf(d.sessionId).status != 'cancelled'
+        && sessionOf(d.sessionId).date == d.date;
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isAdminOrOwner() || teachesClass(resource.data.classId)
+        || (isParent() && resource.data.studentId in parentChildIds());
+      allow create: if validAttendance()
+        && attendanceId == request.resource.data.sessionId + '_' + request.resource.data.studentId
+        && (isAdmin() || teachesClass(request.resource.data.classId));
+      allow update: if validAttendance()
+        && request.resource.data.sessionId == resource.data.sessionId
+        && request.resource.data.studentId == resource.data.studentId
+        && (isAdmin() || teachesClass(resource.data.classId));
+      allow delete: if false;
+    }
+
+    // Kurikulum adalah konten mengajar bersama (bukan data pribadi):
+    // semua staf boleh membaca, hanya admin yang mengubah.
+    match /semesters/{semesterId} {
+      allow read: if isStaff();
+      allow write: if isAdmin();
+    }
+    match /lessons/{lessonId} {
+      allow read: if isStaff() || isParent();
+      allow write: if isAdmin();
+    }
+
+    match /materials/{materialId} {
+      allow read: if isStaff() || (isParent() && resource.data.visibleToParents == true);
+      allow create: if (isAdmin() || isTeacher())
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if (isAdmin() || (isTeacher() && resource.data.createdBy == request.auth.uid))
+        && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAdmin() || (isTeacher() && resource.data.createdBy == request.auth.uid);
+    }
+
+    match /homework/{homeworkId} {
+      allow read: if isAdminOrOwner() || teachesClass(resource.data.classId)
+        || (isParent() && resource.data.classId in parentClassIds());
+      allow create: if (isAdmin() || teachesClass(request.resource.data.classId))
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if (isAdmin() || teachesClass(resource.data.classId))
+        && request.resource.data.classId == resource.data.classId
+        && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if isAdmin() || teachesClass(resource.data.classId);
+    }
+
+    // Perkembangan siswa: append-only. Penilaian lama tidak pernah diubah/dihapus.
+    function validScore(scores, skill) {
+      return !(skill in scores) || scores[skill] == null
+        || (scores[skill] is int && scores[skill] >= 1 && scores[skill] <= 5);
+    }
+    function validProgress() {
+      let d = request.resource.data;
+      let s = d.scores;
+      return d.recordedBy == request.auth.uid
+        && s is map
+        && s.keys().hasOnly(['speaking', 'listening', 'reading', 'writing', 'vocabulary', 'grammar', 'pronunciation', 'participation'])
+        && validScore(s, 'speaking') && validScore(s, 'listening') && validScore(s, 'reading') && validScore(s, 'writing')
+        && validScore(s, 'vocabulary') && validScore(s, 'grammar') && validScore(s, 'pronunciation') && validScore(s, 'participation');
+    }
+    match /studentProgress/{progressId} {
+      allow read: if isAdminOrOwner() || teachesClass(resource.data.classId)
+        || (isParent() && resource.data.studentId in parentChildIds());
+      allow create: if validProgress()
+        && (isAdmin()
+            || (teachesClass(request.resource.data.classId)
+                && get(/databases/$(database)/documents/students/$(request.resource.data.studentId)).data.currentClassId
+                   == request.resource.data.classId));
+      allow update, delete: if false;
+    }
+
+    // Jawaban PR dari orang tua. Id = {homeworkId}_{studentId}.
+    function homeworkOf(id) {
+      return get(/databases/$(database)/documents/homework/$(id)).data;
+    }
+    function validSubmission() {
+      let d = request.resource.data;
+      return d.studentId in parentChildIds()
+        && d.classId in parentClassIds()
+        && homeworkOf(d.homeworkId).classId == d.classId
+        && homeworkOf(d.homeworkId).status == 'active'
+        && d.submittedBy == request.auth.uid
+        && d.status == 'submitted';
+    }
+    match /homeworkSubmissions/{submissionId} {
+      allow read: if isAdminOrOwner() || teachesClass(resource.data.classId)
+        || (isParent() && resource.data.studentId in parentChildIds());
+      allow create: if isParent() && validSubmission()
+        && submissionId == request.resource.data.homeworkId + '_' + request.resource.data.studentId;
+      allow update: if (isParent() && validSubmission()
+            && request.resource.data.studentId == resource.data.studentId
+            && request.resource.data.homeworkId == resource.data.homeworkId)
+        || ((isAdmin() || teachesClass(resource.data.classId))
+            && onlyChanges(['status', 'feedback', 'reviewedBy', 'reviewedByName', 'reviewedAt']));
+      allow delete: if false;
+    }
+
+    // =================== FASE 3: KEUANGAN ===================
+    // Guru tidak punya akses keuangan sama sekali (tidak ada rule = ditolak).
+    // Orang tua: hanya dokumen yang memuat uid-nya di parentUids (dipakai Fase 4).
+
+    function parentOwns() {
+      return isParent() && request.auth.uid in resource.data.parentUids;
+    }
+
+    match /billingProfiles/{profileId} {
+      allow read: if isAdminOrOwner() || parentOwns();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    match /invoices/{invoiceId} {
+      // Draft selalu punya parentUids kosong (diisi saat terbit), jadi orang tua tidak pernah melihat draft.
+      allow read: if isAdminOrOwner() || parentOwns();
+      allow create: if isAdmin() && request.resource.data.status == 'draft';
+      allow update: if isAdmin()
+        && resource.data.status != 'cancelled'
+        && request.resource.data.paidAmount >= 0
+        && request.resource.data.paidAmount <= request.resource.data.total
+        && request.resource.data.studentId == resource.data.studentId;
+      // Hanya draft yang boleh dihapus; tagihan terbit dibatalkan, bukan dihapus.
+      allow delete: if isAdmin() && resource.data.status == 'draft';
+    }
+
+    match /invoiceItems/{itemId} {
+      allow read: if isAdminOrOwner() || parentOwns();
+      allow create, update, delete: if isAdmin();
+    }
+
+    function invoiceOf(id) {
+      return get(/databases/$(database)/documents/invoices/$(id)).data;
+    }
+    function validParentPayment() {
+      let d = request.resource.data;
+      let inv = invoiceOf(d.invoiceId);
+      return d.status == 'pending'
+        && d.createdBy == request.auth.uid
+        && d.paymentNumber == ''
+        && d.verifiedBy == null
+        && d.amount is int && d.amount > 0
+        && request.auth.uid in inv.parentUids
+        && inv.status in ['unpaid', 'partially_paid']
+        && d.amount <= inv.outstandingAmount
+        && d.studentId == inv.studentId
+        && d.billingType == inv.billingType
+        && d.parentUids == inv.parentUids;
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAdminOrOwner() || parentOwns();
+      allow create: if isAdmin()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0;
+      // Orang tua mengirim bukti bayar → selalu pending, admin yang memverifikasi.
+      allow create: if isParent() && validParentPayment();
+      // Pembayaran yang sudah diverifikasi/ditolak tidak bisa diubah lagi
+      // (kecuali sinkronisasi akses orang tua).
+      allow update: if isAdmin() && (resource.data.status == 'pending' || onlyChanges(['parentUids']));
+      allow delete: if false;
+    }
+
+    match /receipts/{receiptId} {
+      allow read: if isAdminOrOwner() || parentOwns();
+      allow create: if isAdmin()
+        && get(/databases/$(database)/documents/payments/$(receiptId)).data.invoiceId == request.resource.data.invoiceId;
+      // Isi kuitansi tidak bisa diubah; hanya sinkronisasi akses orang tua.
+      allow update: if isAdmin() && onlyChanges(['parentUids']);
+      allow delete: if false;
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if isAdmin();
+    }
+
+    // =================== FASE 5: KOMUNIKASI ===================
+
+    // Pengumuman bukan data pribadi. Target kelas (classIds) hanya filter tampilan,
+    // jadi jangan tulis informasi rahasia di pengumuman.
+    match /announcements/{announcementId} {
+      allow read: if isAdminOrOwner()
+        || (isTeacher() && resource.data.published == true && resource.data.audience in ['all', 'teachers'])
+        || (isParent() && resource.data.published == true && resource.data.audience in ['all', 'parents']);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Notifikasi dalam aplikasi. Dibuat oleh pengguna yang melakukan aksi
+    // (mis. admin menerbitkan tagihan → notifikasi ke orang tua).
+    function isRecipient() {
+      return signedIn() && (resource.data.userId == request.auth.uid
+        || (resource.data.targetRole != null && isActiveUser() && resource.data.targetRole == me().role));
+    }
+    match /notifications/{notificationId} {
+      allow read: if isRecipient();
+      allow create: if isActiveUser()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.read == false
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 200
+        && (request.resource.data.targetRole == null || request.resource.data.targetRole == 'admin');
+      allow update: if isRecipient() && onlyChanges(['read', 'readAt']);
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
   }
 }

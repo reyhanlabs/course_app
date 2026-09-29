@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { LogOut, Menu } from 'lucide-react';
 import { useProfile, useAuth } from '../auth/AuthContext';
 import { MENUS } from '../auth/menus';
 import { appName } from '../lib/env';
 import { roleLabels } from '../lib/labels';
 import { Button, cn } from './ui';
+import { NotificationBell } from './NotificationBell';
 
 function Brand() {
   return (
@@ -22,9 +23,17 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const menu = MENUS[profile.role];
 
+  const location = useLocation();
+  // Item menu dengan query (?group=…) aktif hanya bila query-nya sama persis.
+  const active = (to: string, navActive: boolean) =>
+    to.includes('?') ? location.pathname + location.search === to : navActive && !menu.some((sec) => sec.items.some((i) => i.to.includes('?') && location.pathname + location.search === i.to));
+
   const nav = (
-    <nav className="space-y-1 p-3" aria-label="Menu utama">
-      {menu.map((item) => (
+    <nav className="space-y-4 p-3" aria-label="Menu utama">
+      {menu.map((section, i) => (
+        <div key={i} className="space-y-1">
+          {section.title && <p className="px-3 pb-1 text-xs font-semibold text-ink-400">{section.title}</p>}
+          {section.items.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -33,24 +42,26 @@ export function AppLayout({ children }: { children: ReactNode }) {
           className={({ isActive }) =>
             cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              isActive ? 'text-ink-900' : 'text-ink-500 hover:bg-ink-50 hover:text-ink-900',
+              active(item.to, isActive) ? 'text-ink-900' : 'text-ink-500 hover:bg-ink-50 hover:text-ink-900',
             )
           }
         >
           {({ isActive }) => (
             <>
-              <item.icon className={cn('h-4 w-4', isActive && 'text-brand-600')} aria-hidden />
-              <span className={cn(isActive && 'marker-active font-semibold')}>{item.label}</span>
+              <item.icon className={cn('h-4 w-4', active(item.to, isActive) && 'text-brand-600')} aria-hidden />
+              <span className={cn(active(item.to, isActive) && 'marker-active font-semibold')}>{item.label}</span>
             </>
           )}
         </NavLink>
+          ))}
+        </div>
       ))}
     </nav>
   );
 
   return (
     <div className="min-h-screen">
-      <aside className="hidden border-r border-ink-100 bg-white lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col">
+      <aside className="hidden print:hidden border-r border-ink-100 bg-white lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col">
         <Brand />
         <div className="flex-1 overflow-y-auto">{nav}</div>
       </aside>
@@ -65,8 +76,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
         </div>
       )}
 
-      <div className="lg:pl-60">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-ink-100 bg-white/90 px-4 backdrop-blur sm:px-6">
+      <div className="lg:pl-60 print:pl-0">
+        <header className="sticky top-0 z-30 flex print:hidden h-16 items-center gap-3 border-b border-ink-100 bg-white/90 px-4 backdrop-blur sm:px-6">
           <button
             className="rounded-md p-2 text-ink-700 hover:bg-ink-100 lg:hidden"
             onClick={() => setOpen(true)}
@@ -75,6 +86,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1" />
+          <NotificationBell />
           <div className="text-right text-sm leading-tight">
             <div className="font-semibold">{profile.displayName}</div>
             <div className="text-xs text-ink-500">{roleLabels[profile.role]}</div>
@@ -84,7 +96,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <span className="hidden sm:inline">Keluar</span>
           </Button>
         </header>
-        <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
+        <main className="mx-auto max-w-6xl p-4 sm:p-6 print:max-w-none print:p-0">{children}</main>
       </div>
     </div>
   );

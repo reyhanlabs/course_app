@@ -15,6 +15,15 @@ const variants: Record<Variant, string> = {
   ghost: 'text-ink-700 hover:bg-ink-100',
 };
 
+/** Kelas tombol untuk elemen <a> (hindari <button> di dalam <a>). */
+export function buttonClass(variant: Variant = 'primary', className?: string) {
+  return cn(
+    'inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition-colors',
+    variants[variant],
+    className,
+  );
+}
+
 export function Button({
   variant = 'primary',
   loading,

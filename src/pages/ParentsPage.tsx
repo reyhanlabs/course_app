@@ -22,6 +22,7 @@ import { matchesSearch } from '../lib/format';
 import { relationshipOptions } from '../lib/labels';
 import { createParent, createParentAccount, deleteParent, listParents, updateParent } from '../services/parents';
 import { listStudents } from '../services/students';
+import { syncAllParentAccess } from '../services/parentAccess';
 import type { Parent, ParentInput } from '../types';
 
 const empty: ParentInput = { fullName: '', phone: '', whatsapp: '', email: '', address: '', relationship: 'Ibu' };
@@ -32,6 +33,7 @@ export function ParentsPage() {
   const [editing, setEditing] = useState<Parent | null | 'new'>(null);
   const [accountTarget, setAccountTarget] = useState<Parent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Parent | null>(null);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const [parents, students] = data ?? [[], []];
   const childrenOf = useMemo(() => {
@@ -51,9 +53,14 @@ export function ParentsPage() {
         title="Orang Tua"
         description="Satu orang tua bisa terhubung ke beberapa anak. Hubungkan anak dari halaman detail siswa."
         actions={
-          <Button onClick={() => setEditing('new')}>
-            <Plus className="h-4 w-4" /> Tambah orang tua
-          </Button>
+          <>
+            <Button variant="secondary" onClick={() => setSyncOpen(true)}>
+              Sinkronkan akses portal
+            </Button>
+            <Button onClick={() => setEditing('new')}>
+              <Plus className="h-4 w-4" /> Tambah orang tua
+            </Button>
+          </>
         }
       />
       {error ? (
@@ -144,6 +151,18 @@ export function ParentsPage() {
           reload();
         }}
         onClose={() => setAccountTarget(null)}
+      />
+      <ConfirmDialog
+        open={syncOpen}
+        title="Sinkronkan akses portal orang tua"
+        message="Menyelaraskan hak akses semua orang tua ke data anak (kelas, absensi, PR, tagihan, kuitansi). Biasanya terjadi otomatis. Jalankan sekali setelah pembaruan ke Fase 4, atau bila orang tua melaporkan data anak tidak muncul."
+        confirmLabel="Sinkronkan"
+        onConfirm={async () => {
+          const r = await syncAllParentAccess();
+          window.alert(`Selesai: ${r.parents} akun orang tua diperbarui, ${r.documents} dokumen keuangan diselaraskan.`);
+          reload();
+        }}
+        onClose={() => setSyncOpen(false)}
       />
       <ConfirmDialog
         open={deleteTarget !== null}

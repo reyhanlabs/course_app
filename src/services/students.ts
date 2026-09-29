@@ -15,6 +15,7 @@ import type { ClassEnrollment, CourseClass, Parent, Student, StudentInput } from
 import { addAuditLog } from './audit';
 import { countDocs, currentUid, getDocById, listDocs, required } from './db';
 import { uploadPhoto } from './storage';
+import { syncParentUsers, syncStudentFinanceParents } from './parentAccess';
 
 const COL = 'students';
 
@@ -138,6 +139,7 @@ export async function changeStudentClass(
   if (newClass) {
     batch.set(doc(collection(db, 'classEnrollments')), {
       studentId,
+      studentName: student.fullName,
       classId: newClass.id,
       className: newClass.className,
       levelId: newClass.levelId,
@@ -163,6 +165,8 @@ export async function changeStudentClass(
     newData: { classId: newClass?.id ?? null, className: newClass?.className ?? null, effectiveDate, note: note.trim() },
   });
   await batch.commit();
+  // Orang tua ikut bisa melihat jadwal/sesi/PR kelas baru.
+  await syncParentUsers(student.parentUids);
 }
 
 // ---------------- Relasi orang tua ----------------
@@ -173,6 +177,10 @@ export async function linkParent(studentId: string, parent: Parent) {
     ...(parent.userId ? { parentUids: arrayUnion(parent.userId) } : {}),
     updatedAt: serverTimestamp(),
   });
+  if (parent.userId) {
+    await syncStudentFinanceParents(studentId);
+    await syncParentUsers([parent.userId]);
+  }
 }
 
 export async function unlinkParent(studentId: string, parent: Parent) {
@@ -181,4 +189,8 @@ export async function unlinkParent(studentId: string, parent: Parent) {
     ...(parent.userId ? { parentUids: arrayRemove(parent.userId) } : {}),
     updatedAt: serverTimestamp(),
   });
+  if (parent.userId) {
+    await syncStudentFinanceParents(studentId);
+    await syncParentUsers([parent.userId]);
+  }
 }

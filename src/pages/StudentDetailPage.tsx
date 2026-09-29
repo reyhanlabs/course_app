@@ -4,6 +4,15 @@ import { ArrowLeft, Link2, Pencil, Unlink } from 'lucide-react';
 import { useProfile } from '../auth/AuthContext';
 import { ClassChangeModal } from '../components/ClassChangeModal';
 import { StudentFormModal } from '../components/StudentFormModal';
+import { ProgressHistory } from '../components/ProgressHistory';
+import { isPresent, listAttendanceOfStudent } from '../services/attendance';
+import { listProgressOfStudent } from '../services/progress';
+import { listInvoicesOfStudent } from '../services/invoices';
+import { effectiveStatus } from '../lib/billing';
+import { billingTypeLabels, invoiceStatusLabels } from '../lib/labels';
+import { formatMonth, formatRupiah, todayISO } from '../lib/format';
+import { attendanceStatusLabels } from '../lib/labels';
+import { percent } from '../lib/format';
 import {
   Avatar,
   Badge,
@@ -38,12 +47,19 @@ export function StudentDetailPage() {
   const { data, loading, error, reload } = useAsync(async () => {
     const student = await getStudent(id);
     if (!student) throw new Error('Siswa tidak ditemukan.');
-    const [levels, classes, enrollments] = await Promise.all([listLevels(), listClasses(), listEnrollmentsOfStudent(id)]);
+    const [levels, classes, enrollments, attendance, progress] = await Promise.all([
+      listLevels(),
+      listClasses(),
+      listEnrollmentsOfStudent(id),
+      listAttendanceOfStudent(id),
+      listProgressOfStudent(id),
+    ]);
+    const invoices = await listInvoicesOfStudent(id);
     // Data orang tua hanya bisa dibaca admin (lihat firestore.rules).
     const parents = isAdmin
       ? (await Promise.all(student.parentIds.map((pid) => getParent(pid)))).filter((p): p is Parent => p !== null)
       : [];
-    return { student, levels, classes, enrollments, parents };
+    return { student, levels, classes, enrollments, parents, attendance, progress, invoices };
   }, [id, isAdmin]);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -53,7 +69,9 @@ export function StudentDetailPage() {
 
   if (error) return <ErrorState message={error} onRetry={reload} />;
   if (!data) return <LoadingState />;
-  const { student, levels, classes, enrollments, parents } = data;
+  const { student, levels, classes, enrollments, parents, attendance, progress, invoices } = data;
+  const presentCount = attendance.filter((a) => isPresent(a.status)).length;
+  const classNames = new Map(classes.map((c) => [c.id, c.className]));
   const levelName = (lid: string | null) => levels.find((l) => l.id === lid)?.name ?? '-';
   const status = studentStatusLabels[student.status];
   const age = ageFromDate(student.dateOfBirth);
@@ -147,6 +165,71 @@ export function StudentDetailPage() {
                 ))}
               </Table>
             )}
+          </Panel>
+
+          <Panel
+            title="Absensi"
+            actions={
+              attendance.length > 0 && (
+                <span className="text-sm text-ink-500">
+                  Hadir {presentCount} dari {attendance.length} sesi ({percent(presentCount, attendance.length)})
+                </span>
+              )
+            }
+          >
+            {attendance.length === 0 ? (
+              <EmptyState title="Belum ada data absensi" />
+            ) : (
+              <Table head={['Tanggal', 'Kelas', 'Status', 'Catatan']}>
+                {attendance.slice(0, 10).map((a) => (
+                  <tr key={a.id}>
+                    <td className="px-4 py-2">
+                      <Link to={`/sessions/${a.sessionId}`} className="text-brand-600 hover:underline">
+                        {formatDate(a.date)}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2">{classNames.get(a.classId) ?? '-'}</td>
+                    <td className="px-4 py-2">
+                      <Badge tone={attendanceStatusLabels[a.status].tone}>{attendanceStatusLabels[a.status].label}</Badge>
+                    </td>
+                    <td className="px-4 py-2 text-ink-500">{a.notes || '-'}</td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+            {attendance.length > 10 && <p className="px-4 py-2 text-xs text-ink-500">Menampilkan 10 sesi terakhir.</p>}
+          </Panel>
+
+          <Panel title="Tagihan">
+            {invoices.length === 0 ? (
+              <EmptyState title="Belum ada tagihan" />
+            ) : (
+              <Table head={['Nomor', 'Periode', 'Jenis', 'Total', 'Sisa', 'Status']}>
+                {invoices.map((inv) => {
+                  const st = invoiceStatusLabels[effectiveStatus(inv, todayISO())];
+                  return (
+                    <tr key={inv.id}>
+                      <td className="whitespace-nowrap px-4 py-2">
+                        <Link to={`/invoices/${inv.id}`} className="text-brand-600 hover:underline">
+                          {inv.invoiceNumber ?? 'Draft'}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2">{formatMonth(inv.periodStart.slice(0, 7))}</td>
+                      <td className="px-4 py-2">{billingTypeLabels[inv.billingType]}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right">{formatRupiah(inv.total)}</td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right">{inv.status === 'cancelled' ? '-' : formatRupiah(inv.outstandingAmount)}</td>
+                      <td className="px-4 py-2">
+                        <Badge tone={st.tone}>{st.label}</Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </Table>
+            )}
+          </Panel>
+
+          <Panel title="Perkembangan">
+            <ProgressHistory records={progress} classNames={classNames} />
           </Panel>
 
           {isAdmin && (

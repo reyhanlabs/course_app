@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run tests\"",
-    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage"
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/rules\"",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
+    "test": "vitest run tests/unit"
   },
   "dependencies": {
     "firebase": "^12.19.0",

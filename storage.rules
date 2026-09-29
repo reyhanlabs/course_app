@@ -41,6 +41,56 @@ service firebase.storage {
       allow write: if hasRole('admin') && isValidImageOrDelete();
     }
 
+    function isStaff() {
+      return hasRole('admin') || hasRole('owner') || hasRole('teacher');
+    }
+
+    // Materi ajar (maks. 100 MB)
+    match /materials/{materialId}/{fileName} {
+      allow read: if isStaff()
+        || (hasRole('parent')
+            && firestore.get(/databases/(default)/documents/materials/$(materialId)).data.visibleToParents == true);
+      allow create: if (hasRole('admin') || hasRole('teacher'))
+        && request.resource.size < 100 * 1024 * 1024;
+      allow delete: if hasRole('admin')
+        || (hasRole('teacher')
+            && firestore.get(/databases/(default)/documents/materials/$(materialId)).data.createdBy == request.auth.uid);
+    }
+
+    // Lampiran PR (maks. 20 MB). Unggahan orang tua menyusul di Fase 4.
+    match /homework/{homeworkId}/{fileName} {
+      allow read: if isStaff();
+      allow create: if (hasRole('admin') || hasRole('teacher'))
+        && request.resource.size < 20 * 1024 * 1024;
+      allow delete: if hasRole('admin') || hasRole('teacher');
+    }
+
+    // Bukti pembayaran (maks. 10 MB, gambar atau PDF)
+    match /payments/{paymentId}/{fileName} {
+      allow read: if hasRole('admin') || hasRole('owner');
+      allow create: if hasRole('admin')
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+      allow delete: if hasRole('admin');
+    }
+
+    // Jawaban PR dari orang tua (maks. 20 MB)
+    match /homework-submissions/{homeworkId}/{studentId}/{fileName} {
+      allow read: if isStaff()
+        || (hasRole('parent') && studentId in profile().get('childIds', []));
+      allow create: if hasRole('parent')
+        && studentId in profile().get('childIds', [])
+        && request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // Bukti bayar dari orang tua (maks. 10 MB, gambar/PDF), per uid pengunggah
+    match /payment-proofs/{uid}/{fileName} {
+      allow read: if request.auth != null && (request.auth.uid == uid || hasRole('admin') || hasRole('owner'));
+      allow create: if request.auth != null && request.auth.uid == uid && hasRole('parent')
+        && request.resource.size < 10 * 1024 * 1024
+        && (request.resource.contentType.matches('image/.*') || request.resource.contentType == 'application/pdf');
+    }
+
     // Semua path lain ditolak.
   }
 }

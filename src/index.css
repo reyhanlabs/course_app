@@ -53,3 +53,14 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  body {
+    background: white;
+  }
+}

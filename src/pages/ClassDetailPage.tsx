@@ -29,6 +29,8 @@ import { listDocs } from '../services/db';
 import { listLevels } from '../services/levels';
 import { changeStudentClass, listStudents, listStudentsInClass } from '../services/students';
 import { getTeacher, listTeachers } from '../services/teachers';
+import { listSchedulesOfClasses } from '../services/schedules';
+import { dayLabels } from '../lib/labels';
 import type { ClassEnrollment, CourseClass, Student } from '../types';
 
 export function ClassDetailPage() {
@@ -40,10 +42,11 @@ export function ClassDetailPage() {
   const { data, loading, error, reload } = useAsync(async () => {
     const courseClass = await getClass(id);
     if (!courseClass) throw new Error('Kelas tidak ditemukan.');
-    const [levels, roster, enrollments] = await Promise.all([
+    const [levels, roster, enrollments, schedules] = await Promise.all([
       listLevels(),
       listStudentsInClass(id),
       listDocs<ClassEnrollment>('classEnrollments', where('classId', '==', id)),
+      listSchedulesOfClasses([id]),
     ]);
     // Guru hanya boleh membaca data gurunya sendiri; admin & owner boleh semua.
     const teacherName = isTeacher
@@ -52,7 +55,7 @@ export function ClassDetailPage() {
         ? ((await getTeacher(courseClass.teacherId))?.fullName ?? '-')
         : null;
     const teachers = isAdmin ? await listTeachers() : [];
-    return { courseClass, levels, roster, enrollments, teacherName, teachers };
+    return { courseClass, levels, roster, enrollments, teacherName, teachers, schedules };
   }, [id, isAdmin, isTeacher]);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -61,7 +64,7 @@ export function ClassDetailPage() {
 
   if (error) return <ErrorState message={error} onRetry={reload} />;
   if (!data) return <LoadingState />;
-  const { courseClass, levels, roster, enrollments, teacherName, teachers } = data;
+  const { courseClass, levels, roster, enrollments, teacherName, teachers, schedules } = data;
   const level = levels.find((l) => l.id === courseClass.levelId);
   const st = activeStatusLabels[courseClass.status];
   const past = enrollments.filter((e) => e.status === 'ended').sort((a, b) => (b.endDate ?? '').localeCompare(a.endDate ?? ''));
@@ -97,7 +100,22 @@ export function ClassDetailPage() {
               value={`${roster.length}${courseClass.capacity > 0 ? ` dari ${courseClass.capacity}` : ''}`}
             />
             <DetailRow label="Status" value={<Badge tone={st.tone}>{st.label}</Badge>} />
-            <DetailRow label="Jadwal" value={<span className="text-ink-500">Diatur di Fase 2</span>} />
+            <DetailRow
+              label="Jadwal"
+              value={
+                schedules.filter((sc) => sc.status === 'active').length === 0 ? (
+                  <span className="text-ink-500">Belum ada jadwal</span>
+                ) : (
+                  schedules
+                    .filter((sc) => sc.status === 'active')
+                    .map((sc) => (
+                      <span key={sc.id} className="block">
+                        {dayLabels[sc.dayOfWeek]} {sc.startTime}–{sc.endTime}
+                      </span>
+                    ))
+                )
+              }
+            />
           </dl>
         </Panel>
 
