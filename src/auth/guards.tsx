@@ -2,7 +2,10 @@ import type { ReactNode } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { AppLayout } from '../components/AppLayout';
-import { Button } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { Button, FormError } from '../components/ui';
+import { useAsync } from '../hooks/useAsync';
+import { ensureSetupMarker, isSetupDone, promoteCurrentUserToFirstAdmin } from '../services/setup';
 import type { Role } from '../types';
 import { useAuth } from './AuthContext';
 
@@ -35,14 +38,8 @@ export function ProtectedLayout() {
   }
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   if (profileError) return <AccountNotice title="Profil gagal dimuat" message={profileError} />;
-  if (!profile) {
-    return (
-      <AccountNotice
-        title="Akun belum terdaftar"
-        message="Akun login ini belum memiliki profil pengguna di sistem. Hubungi admin kursus untuk mengaktifkannya."
-      />
-    );
-  }
+  if (!profile) return <NoProfile />;
+  if (profile.role === 'admin' && profile.active) return <AdminLayout uid={profile.id} />;
   if (!profile.active) {
     return <AccountNotice title="Akun nonaktif" message="Akun Anda sedang dinonaktifkan. Hubungi admin kursus." />;
   }
@@ -64,4 +61,69 @@ export function RequireRole({ roles, children }: { roles: Role[]; children: Reac
     );
   }
   return <>{children}</>;
+}
+
+/** Admin yang dibuat manual di Console: tutup halaman setup secara permanen. */
+function AdminLayout({ uid }: { uid: string }) {
+  useEffect(() => {
+    ensureSetupMarker(uid);
+  }, [uid]);
+  return (
+    <AppLayout>
+      <Outlet />
+    </AppLayout>
+  );
+}
+
+/** Sudah login tapi belum punya profil. Jika belum ada admin, akun ini bisa langsung dijadikan admin. */
+function NoProfile() {
+  const { user, logout } = useAuth();
+  const setup = useAsync(isSetupDone, []);
+  const [name, setName] = useState(user?.displayName ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (setup.data === false) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-2xl border border-ink-100 bg-white p-8">
+          <h1 className="text-lg font-bold">Jadikan akun ini admin?</h1>
+          <p className="mt-2 text-sm text-ink-500">
+            Belum ada admin di sistem. Akun <strong>{user?.email}</strong> bisa langsung dijadikan admin pertama.
+          </p>
+          <label className="mt-4 block">
+            <span className="mb-1 block text-sm font-medium text-ink-700">Nama Anda</span>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <FormError message={error} />
+          <div className="mt-6 flex gap-2">
+            <Button
+              loading={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError(null);
+                try {
+                  await promoteCurrentUserToFirstAdmin(name);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Gagal.');
+                  setBusy(false);
+                }
+              }}
+            >
+              Jadikan admin
+            </Button>
+            <Button variant="secondary" onClick={logout}>
+              Keluar
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <AccountNotice
+      title="Akun belum terdaftar"
+      message={`${user?.email ?? 'Akun ini'} belum terdaftar di sistem. Minta admin kursus membuatkan akun dengan email ini, lalu masuk lagi (bisa dengan Google atau kata sandi dari email undangan).`}
+    />
+  );
 }

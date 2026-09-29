@@ -56,7 +56,36 @@ service cloud.firestore {
       // Hanya admin yang bisa membuat/mengubah profil & peran.
       allow create, update: if isAdmin()
         && request.resource.data.role in ['admin', 'teacher', 'parent', 'owner'];
+      // Setup awal dari aplikasi: pengguna pertama boleh menjadikan dirinya admin,
+      // HANYA selama system/setup belum ada, dan dibuat bersamaan dalam satu batch.
+      allow create: if isFirstAdminSetup(uid);
       allow delete: if false;
+    }
+
+    function setupPath() {
+      return /databases/$(database)/documents/system/setup;
+    }
+    function isFirstAdminSetup(uid) {
+      return signedIn()
+        && request.auth.uid == uid
+        && !exists(setupPath())
+        && existsAfter(setupPath())
+        && request.resource.data.role == 'admin'
+        && request.resource.data.active == true
+        && request.resource.data.email == request.auth.token.email;
+    }
+
+    // Penanda bahwa admin pertama sudah dibuat. Boleh dibaca siapa saja
+    // (hanya berisi uid admin pertama) agar halaman login tahu perlu setup atau tidak.
+    // Tidak bisa diubah/dihapus, jadi setup tidak bisa diulang.
+    match /system/{docId} {
+      allow get: if true;
+      allow create: if docId == 'setup'
+        && signedIn()
+        && request.resource.data.adminUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+      allow update, delete: if false;
     }
 
     // ---------- Pengaturan lembaga ----------

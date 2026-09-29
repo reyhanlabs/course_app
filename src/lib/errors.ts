@@ -13,6 +13,10 @@ const messages: Record<string, string> = {
   'auth/too-many-requests': 'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.',
   'auth/network-request-failed': 'Koneksi internet bermasalah. Coba lagi.',
   'auth/user-disabled': 'Akun ini dinonaktifkan.',
+  'auth/operation-not-allowed': 'Metode login ini belum diaktifkan di Firebase Console (Authentication → Sign-in method).',
+  'auth/popup-blocked': 'Popup login diblokir browser. Izinkan popup untuk situs ini lalu coba lagi.',
+  'auth/unauthorized-domain': 'Domain ini belum diizinkan. Tambahkan di Firebase Console → Authentication → Settings → Authorized domains.',
+  'auth/account-exists-with-different-credential': 'Email ini sudah terdaftar dengan kata sandi. Masuk memakai email & kata sandi.',
   'storage/unauthorized': 'Anda tidak memiliki akses untuk mengunggah file ini.',
 };
 

@@ -23,7 +23,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the data model and securi
 ## 1. Firebase setup (once)
 
 1. Create a project at https://console.firebase.google.com.
-2. **Authentication** → Sign-in method → enable **Email/Password**.
+2. **Authentication** → Sign-in method → enable **Email/Password** and **Google** (for Google, pick a *support email* and save).
 3. **Firestore Database** → create database (production mode, region e.g. `asia-southeast2` Jakarta).
 4. **Storage** → get started (same region).
 5. Project settings → General → **Add app → Web**. Copy the config values.
@@ -54,24 +54,22 @@ npm run deploy:rules
 
 On the first Storage deploy, Firebase asks to let Storage rules read Firestore (needed for role checks). Accept it.
 
-## 4. Create the first admin (once)
+## 4. Create the first admin (once, in the app)
 
-Admins create every other account from inside the app, so only the first admin is manual:
+1. Make sure Email/Password sign-in is enabled (step 1.2) and the rules are deployed (step 3).
+2. Open the app. The login page shows **"Belum ada admin"** → click it → fill in name, email, password → **Buat admin & masuk**.
 
-1. Firebase Console → Authentication → **Add user** (your email + a password). Copy the **User UID**.
-2. Firestore → Start collection `users` → Document ID = **that UID**, fields:
+That's it. The setup page closes permanently after the first admin exists (a `system/setup` marker doc guarded by rules), so nobody else can use it. Do this right after the first deploy.
 
-| field | type | value |
-|---|---|---|
-| email | string | your email |
-| displayName | string | your name |
-| role | string | `admin` |
-| active | boolean | `true` |
-| parentId | null | |
-| teacherId | null | |
-| classIds | array | (empty) |
+If you already created a login in the Firebase Console, log in with it and the app offers **"Jadikan akun ini admin"**.
 
-3. Log in to the app.
+### Login with Google
+
+- Anyone can press **Masuk dengan Google**, but only accounts with a profile in the system can open data. Unknown Google accounts see "Akun belum terdaftar".
+- Teachers and parents with a **Gmail** address: the admin creates their account as usual (menu Guru / Orang Tua → Buat akun) with that Gmail. They can then log in with Google directly, without setting a password. Firebase keeps the same account (same UID), so the profile and access stay intact.
+- For non-Gmail addresses (e.g. Yahoo, or company email), use email + password from the invitation email.
+- The first admin can also be created with Google on the setup page.
+- Google login uses a popup. If nothing happens, allow popups for the site.
 
 ## 5. Deploy to Vercel
 

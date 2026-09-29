@@ -6,6 +6,10 @@ import { Button, Field, FormError } from '../components/ui';
 import { appName } from '../lib/env';
 import { errorMessage } from '../lib/errors';
 import { auth } from '../lib/firebase';
+import { useAsync } from '../hooks/useAsync';
+import { isSetupDone } from '../services/setup';
+import { GoogleButton, OrDivider } from '../components/GoogleButton';
+import { signInWithGoogle } from '../services/googleAuth';
 
 export function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -31,6 +35,20 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const setup = useAsync(isSetupDone, []);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  async function onGoogle() {
+    setGoogleBusy(true);
+    setError(null);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setGoogleBusy(false);
+    }
+  }
 
   const from = (location.state as { from?: string } | null)?.from ?? '/';
   if (!loading && user) return <Navigate to={from} replace />;
@@ -49,6 +67,17 @@ export function LoginPage() {
 
   return (
     <AuthShell title="Masuk">
+      {setup.data === false && (
+        <Link
+          to="/setup"
+          className="mb-5 block rounded-lg border border-marker bg-marker-soft/60 px-4 py-3 text-sm hover:bg-marker-soft"
+        >
+          <span className="block font-semibold">Belum ada admin</span>
+          Klik di sini untuk membuat akun admin pertama.
+        </Link>
+      )}
+      <GoogleButton onClick={onGoogle} loading={googleBusy} />
+      <OrDivider />
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Email">
           <input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />

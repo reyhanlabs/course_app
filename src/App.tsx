@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { ProtectedLayout, RequireRole } from './auth/guards';
 import { LoginPage } from './pages/LoginPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { SetupPage } from './pages/SetupPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { StudentsPage } from './pages/StudentsPage';
 import { StudentDetailPage } from './pages/StudentDetailPage';
@@ -57,6 +58,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/setup" element={<SetupPage />} />
           <Route element={<ProtectedLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="students" element={<RequireRole roles={['admin', 'owner']}><StudentsPage /></RequireRole>} />
