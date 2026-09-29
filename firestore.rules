@@ -1,0 +1,119 @@
+rules_version = '2';
+
+// =====================================================================
+// Firestore Security Rules — lapisan keamanan utama aplikasi.
+// Proteksi route di frontend hanya untuk kenyamanan tampilan.
+//
+// Model akses:
+// - Peran disimpan di users/{uid}.role dan hanya bisa diubah admin.
+// - Orang tua: students.parentUids berisi uid akun orang tua.
+// - Guru: classes.teacherUid = uid guru, dan users/{uid}.classIds
+//   berisi daftar kelas yang diajar (dipelihara oleh aplikasi admin).
+// - Semua koleksi yang tidak disebut di bawah otomatis DITOLAK.
+// =====================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function profilePath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+    function me() {
+      return get(profilePath()).data;
+    }
+    function isActiveUser() {
+      return signedIn() && exists(profilePath()) && me().active == true;
+    }
+    function hasRole(role) {
+      return isActiveUser() && me().role == role;
+    }
+    function isAdmin()   { return hasRole('admin'); }
+    function isOwner()   { return hasRole('owner'); }
+    function isTeacher() { return hasRole('teacher'); }
+    function isParent()  { return hasRole('parent'); }
+    function isAdminOrOwner() { return isAdmin() || isOwner(); }
+    function teacherClassIds() {
+      return me().get('classIds', []);
+    }
+
+    // ---------- Pengguna & peran ----------
+    match /users/{uid} {
+      // Pengguna selalu boleh membaca profilnya sendiri (juga saat nonaktif,
+      // agar aplikasi bisa menampilkan pesan "akun nonaktif").
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow read: if isAdmin();
+      // Hanya admin yang bisa membuat/mengubah profil & peran.
+      allow create, update: if isAdmin()
+        && request.resource.data.role in ['admin', 'teacher', 'parent', 'owner'];
+      allow delete: if false;
+    }
+
+    // ---------- Pengaturan lembaga ----------
+    match /settings/{settingId} {
+      allow read: if isActiveUser();
+      allow write: if isAdmin();
+    }
+
+    // ---------- Level (tidak sensitif) ----------
+    match /levels/{levelId} {
+      allow read: if isActiveUser();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---------- Kelas ----------
+    match /classes/{classId} {
+      allow read: if isAdminOrOwner()
+        || (isTeacher() && resource.data.teacherUid == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---------- Siswa ----------
+    match /students/{studentId} {
+      allow read: if isAdminOrOwner()
+        || (isTeacher() && resource.data.currentClassId in teacherClassIds())
+        || (isParent() && request.auth.uid in resource.data.parentUids);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---------- Riwayat kelas siswa (tidak pernah dihapus) ----------
+    match /classEnrollments/{enrollmentId} {
+      allow read: if isAdminOrOwner()
+        || (isTeacher() && resource.data.classId in teacherClassIds());
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---------- Orang tua ----------
+    match /parents/{parentId} {
+      allow read: if isAdmin()
+        || (isParent() && resource.data.userId == request.auth.uid);
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- Guru ----------
+    match /teachers/{teacherId} {
+      allow read: if isAdminOrOwner()
+        || (isTeacher() && resource.data.userId == request.auth.uid);
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ---------- Audit log (append-only) ----------
+    match /auditLogs/{logId} {
+      allow read: if isAdminOrOwner();
+      allow create: if isAdmin() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // TODO Fase 2–5: rooms, schedules, sessions, attendance, curriculum,
+    // lessons, materials, homework, studentProgress, billing, invoices,
+    // payments, receipts, announcements, notifications.
+    // Selama belum ada rule, koleksi tersebut tertolak secara default.
+  }
+}

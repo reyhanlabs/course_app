@@ -1,0 +1,71 @@
+import { useState, type FormEvent } from 'react';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '../auth/AuthContext';
+import { Button, Field, FormError } from '../components/ui';
+import { appName } from '../lib/env';
+import { errorMessage } from '../lib/errors';
+import { auth } from '../lib/firebase';
+
+export function AuthShell({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-ink-900 font-bold text-white">Aa</span>
+          <span className="text-lg font-bold">{appName}</span>
+        </div>
+        <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
+          <h1 className="mb-5 text-xl font-bold">{title}</h1>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function LoginPage() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const from = (location.state as { from?: string } | null)?.from ?? '/';
+  if (!loading && user) return <Navigate to={from} replace />;
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AuthShell title="Masuk">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <Field label="Email">
+          <input className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </Field>
+        <Field label="Kata sandi">
+          <input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+        </Field>
+        <FormError message={error} />
+        <Button type="submit" className="w-full" loading={busy}>
+          Masuk
+        </Button>
+        <p className="text-center text-sm">
+          <Link to="/forgot-password" className="font-medium text-brand-600 hover:underline">
+            Lupa kata sandi?
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
+  );
+}

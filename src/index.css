@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+/*
+  Token desain: "buku tulis sekolah" — kertas putih, tinta biru tua,
+  dan stabilo kuning sebagai satu-satunya aksen berani (menu aktif).
+*/
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink-50: #f3f6f9;
+  --color-ink-100: #e4e9f0;
+  --color-ink-200: #cdd5e1;
+  --color-ink-400: #8491a8;
+  --color-ink-500: #5d6a82;
+  --color-ink-700: #33405c;
+  --color-ink-900: #1e2a4a;
+
+  --color-brand-50: #edf2fc;
+  --color-brand-100: #d9e4f8;
+  --color-brand-500: #3a68c9;
+  --color-brand-600: #2e5bba;
+  --color-brand-700: #244a99;
+
+  --color-marker: #f5b82e;
+  --color-marker-soft: #fdecbf;
+}
+
+html {
+  font-feature-settings: 'tnum' 1;
+}
+
+body {
+  @apply bg-ink-50 text-ink-900 antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+}
+
+.input {
+  @apply block w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:bg-ink-50 disabled:text-ink-500;
+}
+
+/* Sorotan stabilo pada menu aktif */
+.marker-active {
+  background-image: linear-gradient(transparent 55%, var(--color-marker-soft) 55%, var(--color-marker-soft) 90%, transparent 90%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
